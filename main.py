@@ -20,19 +20,29 @@ CONTAINER_NAME = "dockshade"
 LEVEL_COLORS   = {1: "green", 2: "yellow", 3: "red"}
 LEVEL_LABELS   = {1: "● Básico", 2: "●● Intermedio", 3: "●●● Avanzado"}
 PLACEHOLDER_LABELS = {
-    "target": "IP / host objetivo",
-    "domain": "Dominio",
-    "canal":  "Canal WiFi",
-    "MAC_AP": "MAC del Access Point",
-    "hash":   "Archivo o hash",
+    "target":     "IP / host objetivo",
+    "domain":     "Dominio",
+    "canal":      "Canal WiFi (ej: 6)",
+    "MAC_AP":     "MAC del Access Point",
+    "hash":       "Archivo o hash",
+    "image_file": "Ruta a la imagen (ej: foto.jpg)",
 }
 TERMINALS = [
-    ["gnome-terminal", "--"], ["xterm", "-e"], ["konsole", "-e"],
-    ["alacritty", "-e"], ["kitty"], ["tilix", "-e"],
-    ["xfce4-terminal", "-e"], ["mate-terminal", "-e"],
+    ["foot", "-e"],
+    ["footclient", "-e"],
+    ["alacritty", "-e"],
+    ["kitty"],
+    ["wezterm", "start", "--"],
+    ["ghostty", "-e"],
+    ["konsole", "-e"],
+    ["gnome-terminal", "--"],
+    ["xterm", "-e"],
+    ["tilix", "-e"],
+    ["xfce4-terminal", "-e"],
+    ["mate-terminal", "-e"],
 ]
 CATEGORIES = [
-    "★ Favoritos", "Todas", "Recon", "Web", "Exploitation",
+    "★ Favoritos", "Todas", "Setup", "Recon", "Web", "Exploitation",
     "Passwords", "Wireless", "Network", "Post-Exploitation",
     "Forensics", "Reversing",
 ]
@@ -730,12 +740,50 @@ class DockShade(App):
             return
         name  = t["name"]
         ic    = t.get("install_cmd", f"sudo apt install -y {name}")
-        inner = f"echo '─── DockShade: Instalando {name} ───'; echo; {ic}; echo; echo '─── Listo ───'; exec bash"
+        inner = (
+            f"echo '─── DockShade: Instalando {name} ───'; echo; "
+            f"{ic}; "
+            f"echo; echo '─── Instalación completada ───'; exec bash"
+        )
         dc = ["distrobox", "enter", CONTAINER_NAME, "--", "bash", "-c", inner]
         if self._run_in_terminal(dc):
-            self.notify(f"Instalando {t['name']} en [{CONTAINER_NAME}]...", severity="information")
+            self.notify(f"Instalando {name} en [{CONTAINER_NAME}]...", severity="information")
+            self._recheck_tool(name)
         else:
             self.notify("Sin terminal gráfica disponible", severity="error")
+
+    @work(thread=True)
+    def _recheck_tool(self, tool_name: str):
+        import time
+        worker = get_current_worker()
+        installed = False
+        for attempt in range(1, 13):
+            if worker.is_cancelled:
+                return
+            time.sleep(10)
+            installed = checker.recheck_single(tool_name)
+            if installed:
+                break
+            self.call_from_thread(
+                self.notify,
+                f"Verificando {tool_name}... (intento {attempt}/12)",
+                severity="information",
+            )
+        def _apply():
+            s = dict(self.install_statuses)
+            s[tool_name] = installed
+            self.install_statuses = s
+            self._update_status_widget()
+            self._refresh_tools()
+            if installed:
+                self.notify(f"✓ {tool_name} instalada correctamente", severity="information")
+            else:
+                self.notify(
+                    f"{tool_name}: no detectada después de 2 min — "
+                    "verifica en la terminal con 'which {tool_name}'",
+                    severity="warning",
+                )
+        self.call_from_thread(_apply)
 
     def action_launch(self):
         t = self.selected_tool
@@ -827,12 +875,21 @@ class DockShade(App):
             pass
 
     def _run_in_terminal(self, cmd_list):
+        import os
+        env = os.environ.copy()
+        for var in ("DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR",
+                    "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS",
+                    "QT_QPA_PLATFORM", "GDK_BACKEND"):
+            val = os.environ.get(var)
+            if val:
+                env[var] = val
         for tp in TERMINALS:
             try:
                 subprocess.Popen(
                     tp + cmd_list,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
+                    env=env,
                 )
                 return True
             except FileNotFoundError:
@@ -849,6 +906,7 @@ class DockShade(App):
         return False
 
     def _launch(self, tool_name, cmd):
+        cmd = cmd.strip().rstrip('&').strip()
         inner = f"echo '─── DockShade: {tool_name} ───'; echo; {cmd}; echo; exec bash"
         dc    = ["distrobox", "enter", CONTAINER_NAME, "--", "bash", "-c", inner]
         if self._run_in_terminal(dc):
